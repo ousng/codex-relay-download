@@ -31,16 +31,6 @@ jobs:
           override: true
           profile: minimal
 
-      - name: Cache cargo registry
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/registry
-            ~/.cargo/git
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
-
       - name: Run cargo vendor
         run: |
           mkdir -p .cargo
@@ -48,15 +38,21 @@ jobs:
           echo "✅ Vendor 完成，依赖包数量："
           ls -la vendor/ | wc -l
 
-      - name: Create source package with vendored dependencies
+      - name: Create clean package directory
+        run: |
+          mkdir -p ../package
+          # 复制所有必要文件（排除 .git、target、*.tar.gz）
+          rsync -av --exclude='.git' --exclude='target' --exclude='*.tar.gz' ./ ../package/
+          # 验证关键文件存在
+          ls -la ../package/
+
+      - name: Create tarball from clean directory
         run: |
           PACKAGE_NAME="codex-relay-${CODEX_RELAY_VERSION}-with-deps.tar.gz"
-          # 打包整个源码目录，排除 .git 和 target（如果有）
-          tar -czf "$PACKAGE_NAME" \
-            --exclude='.git' \
-            --exclude='target' \
-            --exclude='*.tar.gz' \
-            .
+          cd ../package
+          tar -czf "$PACKAGE_NAME" .
+          mv "$PACKAGE_NAME" ../codex-relay/
+          cd ../codex-relay
           echo "📦 打包完成：$PACKAGE_NAME"
           ls -lh "$PACKAGE_NAME"
 
