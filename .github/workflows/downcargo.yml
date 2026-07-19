@@ -41,17 +41,20 @@ jobs:
       - name: Clean unnecessary files
         run: |
           rm -rf target/ .git/ .github/ .idea/ .claude/ codex_relay/ pyproject.toml .gitignore 2>/dev/null || true
-          echo "📂 清理后的目录内容："
+          echo "📂 当前目录内容："
+          pwd
           ls -la
 
-      - name: Create tarball from parent directory
+      - name: Create tarball
         run: |
           PACKAGE_NAME="codex-relay-${CODEX_RELAY_VERSION}-with-deps.tar.gz"
-          # 关键：在父目录中打包当前目录（codex-relay），避免打包 .
+          # 使用当前目录名作为打包根目录，输出到父目录
+          DIR_NAME=$(basename "$PWD")
+          echo "当前目录名: $DIR_NAME"
           cd ..
-          tar -czf "$PACKAGE_NAME" --exclude='*.tar.gz' codex-relay/
-          mv "$PACKAGE_NAME" codex-relay/
-          cd codex-relay
+          tar -czf "$PACKAGE_NAME" "$DIR_NAME"
+          mv "$PACKAGE_NAME" "$DIR_NAME/"
+          cd "$DIR_NAME"
           echo "📦 打包完成：$PACKAGE_NAME"
           ls -lh "$PACKAGE_NAME"
 
