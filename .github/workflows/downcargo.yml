@@ -1,0 +1,79 @@
+name: Vendor Dependencies for codex-relay
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+  workflow_dispatch:  # 支持手动触发
+    inputs:
+      version:
+        description: 'codex-relay 版本 tag（如 v0.5.4）'
+        required: true
+        default: 'v0.5.4'
+        type: string
+
+env:
+  CODEX_RELAY_VERSION: ${{ github.event.inputs.version || 'v0.5.4' }}
+
+jobs:
+  vendor:
+    name: Vendor Dependencies (${{ env.CODEX_RELAY_VERSION }})
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          repository: MetaFARS/codex-relay
+          ref: ${{ env.CODEX_RELAY_VERSION }}
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run cargo vendor
+        run: |
+          mkdir -p .cargo
+          cargo vendor > .cargo/config.toml
+          echo "✅ Vendor 完成，依赖数量："
+          ls -la vendor/ | wc -l
+
+      - name: Create tarball for offline transfer
+        run: |
+          PACKAGE_NAME="codex-relay-${{ env.CODEX_RELAY_VERSION }}-vendored.tar.gz"
+          tar -czf "$PACKAGE_NAME" \
+            --exclude='.git' \
+            --exclude='target' \
+            --exclude='*.tar.gz' \
+            .
+          echo "📦 打包完成：$PACKAGE_NAME"
+          ls -lh "$PACKAGE_NAME"
+
+      - name: Upload vendored source
+        uses: actions/upload-artifact@v4
+        with:
+          name: codex-relay-${{ env.CODEX_RELAY_VERSION }}-offline-package
+          path: codex-relay-${{ env.CODEX_RELAY_VERSION }}-vendored.tar.gz
+          retention-days: 30
+
+      - name: Upload vendor directory separately (optional)
+        uses: actions/upload-artifact@v4
+        with:
+          name: vendor-directory-${{ env.CODEX_RELAY_VERSION }}
+          path: vendor/
+          retention-days: 30
