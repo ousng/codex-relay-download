@@ -38,21 +38,29 @@ jobs:
           echo "✅ Vendor 完成，依赖包数量："
           ls -la vendor/ | wc -l
 
-      - name: Create clean package directory
+      - name: Clean and prepare package
         run: |
-          mkdir -p ../package
-          # 复制所有必要文件（排除 .git、target、*.tar.gz）
-          rsync -av --exclude='.git' --exclude='target' --exclude='*.tar.gz' ./ ../package/
-          # 验证关键文件存在
-          ls -la ../package/
+          # 删除可能变化的目录
+          rm -rf target/
+          rm -rf .git/
+          rm -rf .github/
+          rm -rf .idea/
+          rm -rf .claude/
+          # 删除 Python 相关文件（离线编译不需要）
+          rm -rf codex_relay/  # Python 包目录，Rust 编译不需要
+          rm -f pyproject.toml
+          # 删除 .gitignore
+          rm -f .gitignore
+          # 确认当前目录内容
+          ls -la
 
-      - name: Create tarball from clean directory
+      - name: Create tarball
         run: |
           PACKAGE_NAME="codex-relay-${CODEX_RELAY_VERSION}-with-deps.tar.gz"
-          cd ../package
-          tar -czf "$PACKAGE_NAME" .
-          mv "$PACKAGE_NAME" ../codex-relay/
-          cd ../codex-relay
+          # 直接打包当前目录，此时已经是干净的
+          tar -czf "$PACKAGE_NAME" \
+            --exclude='*.tar.gz' \
+            .
           echo "📦 打包完成：$PACKAGE_NAME"
           ls -lh "$PACKAGE_NAME"
 
