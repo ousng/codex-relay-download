@@ -31,24 +31,38 @@ jobs:
           override: true
           profile: minimal
 
+      - name: Add smcrrypto dependency
+        run: |
+          # 在 [dependencies] 下方插入 smcrrypto
+          if grep -q "^\[dependencies\]" Cargo.toml; then
+            # 如果 [dependencies] 存在，在它下面插入
+            sed -i '/^\[dependencies\]/a smcrrypto = "0.1.2"' Cargo.toml
+          else
+            # 如果 [dependencies] 不存在，追加到文件末尾
+            echo -e "\n[dependencies]\nsmcrrypto = \"0.1.2\"" >> Cargo.toml
+          fi
+          echo "📝 Cargo.toml 已更新："
+          cat Cargo.toml
+
       - name: Run cargo vendor
         run: |
           mkdir -p .cargo
           cargo vendor > .cargo/config.toml
           echo "✅ Vendor 完成，依赖包数量："
           ls -la vendor/ | wc -l
+          echo "🔍 确认 smcrrypto 已下载："
+          ls -la vendor/ | grep smcrrypto || echo "⚠️ smcrrypto 未找到"
 
       - name: Clean unnecessary files
         run: |
           rm -rf target/ .git/ .github/ .idea/ .claude/ codex_relay/ pyproject.toml .gitignore 2>/dev/null || true
-          echo "📂 当前目录内容："
+          echo "📂 清理后的目录内容："
           pwd
           ls -la
 
       - name: Create tarball
         run: |
           PACKAGE_NAME="codex-relay-${CODEX_RELAY_VERSION}-with-deps.tar.gz"
-          # 使用当前目录名作为打包根目录，输出到父目录
           DIR_NAME=$(basename "$PWD")
           echo "当前目录名: $DIR_NAME"
           cd ..
