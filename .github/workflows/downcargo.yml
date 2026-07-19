@@ -1,11 +1,7 @@
-name: Vendor Dependencies for codex-relay
+name: Package Source and Dependencies for codex-relay
 
 on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
-  workflow_dispatch:  # 支持手动触发
+  workflow_dispatch:
     inputs:
       version:
         description: 'codex-relay 版本 tag（如 v0.5.4）'
@@ -13,14 +9,11 @@ on:
         default: 'v0.5.4'
         type: string
 
-# ⚠️ 不在顶层定义 env，因为 jobs.<job_id>.name 无法访问 env
-
 jobs:
-  vendor:
-    name: Vendor Dependencies  # 直接使用固定名称，或使用 ${{ inputs.version }}
+  package:
+    name: Package Source + Dependencies
     runs-on: ubuntu-latest
 
-    # ✅ 在 job 内部定义环境变量，供 steps 使用
     env:
       CODEX_RELAY_VERSION: ${{ github.event.inputs.version || 'v0.5.4' }}
 
@@ -44,7 +37,6 @@ jobs:
           path: |
             ~/.cargo/registry
             ~/.cargo/git
-            target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
@@ -53,12 +45,13 @@ jobs:
         run: |
           mkdir -p .cargo
           cargo vendor > .cargo/config.toml
-          echo "✅ Vendor 完成，依赖数量："
+          echo "✅ Vendor 完成，依赖包数量："
           ls -la vendor/ | wc -l
 
-      - name: Create tarball for offline transfer
+      - name: Create source package with vendored dependencies
         run: |
-          PACKAGE_NAME="codex-relay-${CODEX_RELAY_VERSION}-vendored.tar.gz"
+          PACKAGE_NAME="codex-relay-${CODEX_RELAY_VERSION}-with-deps.tar.gz"
+          # 打包整个源码目录，排除 .git 和 target（如果有）
           tar -czf "$PACKAGE_NAME" \
             --exclude='.git' \
             --exclude='target' \
@@ -67,16 +60,9 @@ jobs:
           echo "📦 打包完成：$PACKAGE_NAME"
           ls -lh "$PACKAGE_NAME"
 
-      - name: Upload vendored source
+      - name: Upload packaged source with dependencies
         uses: actions/upload-artifact@v4
         with:
-          name: codex-relay-${{ env.CODEX_RELAY_VERSION }}-offline-package
-          path: codex-relay-${{ env.CODEX_RELAY_VERSION }}-vendored.tar.gz
-          retention-days: 30
-
-      - name: Upload vendor directory separately (optional)
-        uses: actions/upload-artifact@v4
-        with:
-          name: vendor-directory-${{ env.CODEX_RELAY_VERSION }}
-          path: vendor/
+          name: codex-relay-${{ env.CODEX_RELAY_VERSION }}-with-deps
+          path: codex-relay-${{ env.CODEX_RELAY_VERSION }}-with-deps.tar.gz
           retention-days: 30
