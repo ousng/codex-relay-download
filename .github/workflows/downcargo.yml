@@ -13,13 +13,16 @@ on:
         default: 'v0.5.4'
         type: string
 
-env:
-  CODEX_RELAY_VERSION: ${{ github.event.inputs.version || 'v0.5.4' }}
+# ⚠️ 不在顶层定义 env，因为 jobs.<job_id>.name 无法访问 env
 
 jobs:
   vendor:
-    name: Vendor Dependencies (${{ env.CODEX_RELAY_VERSION }})
+    name: Vendor Dependencies  # 直接使用固定名称，或使用 ${{ inputs.version }}
     runs-on: ubuntu-latest
+
+    # ✅ 在 job 内部定义环境变量，供 steps 使用
+    env:
+      CODEX_RELAY_VERSION: ${{ github.event.inputs.version || 'v0.5.4' }}
 
     steps:
       - name: Checkout code
@@ -55,7 +58,7 @@ jobs:
 
       - name: Create tarball for offline transfer
         run: |
-          PACKAGE_NAME="codex-relay-${{ env.CODEX_RELAY_VERSION }}-vendored.tar.gz"
+          PACKAGE_NAME="codex-relay-${CODEX_RELAY_VERSION}-vendored.tar.gz"
           tar -czf "$PACKAGE_NAME" \
             --exclude='.git' \
             --exclude='target' \
